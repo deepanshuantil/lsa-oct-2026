@@ -4,7 +4,7 @@ An end-to-end data pipeline for NHS England GP appointment data: **extract** the
 
 **The question it answers:** How is GP appointment capacity being used, and where is it being lost?
 
-**Author:** YOUR NAME
+**Author:** Deepanshu
 
 ## Status
 
