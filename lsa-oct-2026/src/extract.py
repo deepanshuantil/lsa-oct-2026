@@ -1,31 +1,24 @@
-"""
-Extract stage: copy the three source files into data/raw/, convert the Excel
-file to CSV, and write manifest.json.
+"""Extract stage: copy the three source files into data/raw/, convert the Excel
+file to CSV, and write manifest.json. Raw copies are NEVER edited.
 
-The raw copies are NEVER edited. If anything goes wrong later, rebuild from raw.
-
-Usage (from the repo root):
-    python src/extract.py --source /path/to/folder/with/the/files
-
-Optional: --dest data/raw   (default)
+    python src/extract.py --source /path/to/original/files
 """
 import argparse
 import csv
 import hashlib
 import json
+import logging
 import shutil
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 
-REGIONAL = "appointments_regional.csv"
-CATEGORIES = "national_categories.csv"
-DURATION_XLSX = "actual_duration.csv.xlsx"   # an Excel file, despite the name
-DURATION_CSV = "actual_duration.csv"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import config  # noqa: E402
 
-# Row counts the plan says you must get. A mismatch means something is wrong.
-EXPECTED_ROWS = {REGIONAL: 596_821, CATEGORIES: 817_394, DURATION_CSV: 137_793}
+log = logging.getLogger("extract")
 
 
 def sha256_of(path: Path) -> str:
@@ -37,78 +30,60 @@ def sha256_of(path: Path) -> str:
 
 
 def count_csv_rows(path: Path) -> int:
-    """Number of data rows, excluding the header. Uses the csv module so a
-    quoted field containing a line break is not counted as two rows.
-    utf-8-sig only affects how we READ; the file on disk is untouched."""
+    """Data rows excluding the header. utf-8-sig only changes how we READ."""
     with open(path, newline="", encoding="utf-8-sig") as f:
         return sum(1 for _ in csv.reader(f)) - 1
 
 
-def describe(path: Path, rows: int, extracted_at: str, **extra) -> dict:
-    return {
-        "file_name": path.name,
-        "size_bytes": path.stat().st_size,
-        "sha256": sha256_of(path),
-        "row_count": rows,
-        "extracted_at": extracted_at,
-        **extra,
-    }
+def _describe(path: Path, rows: int, when: str, **extra) -> dict:
+    return {"file_name": path.name, "size_bytes": path.stat().st_size,
+            "sha256": sha256_of(path), "row_count": rows, "extracted_at": when, **extra}
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--source", required=True, help="folder holding the three source files")
-    ap.add_argument("--dest", default="data/raw", help="where raw copies go (default data/raw)")
-    args = ap.parse_args()
-
-    source, dest = Path(args.source), Path(args.dest)
+def run(source: Path = config.SOURCE, dest: Path = config.RAW,
+        expected_rows: dict | None = config.EXPECTED_ROWS) -> dict:
+    """Copy, convert and fingerprint the raw files. Returns {name: output path}."""
+    source, dest = Path(source), Path(dest)
     dest.mkdir(parents=True, exist_ok=True)
+    started = datetime.now(timezone.utc)
+    log.info("extract start | source=%s dest=%s", source, dest)
 
-    # 1. Copy the three files byte-for-byte (copy2 also keeps timestamps)
-    for name in (REGIONAL, CATEGORIES, DURATION_XLSX):
-        src = source / name
+    for name in (config.REGIONAL_CSV, config.CATEGORIES_CSV, config.DURATION_XLSX):
+        src, dst = source / name, dest / name
         if not src.exists():
             raise FileNotFoundError(f"Missing source file: {src}")
-        shutil.copy2(src, dest / name)
-        print(f"copied {name}")
+        if src.resolve() != dst.resolve():          # idempotent: re-copy is harmless
+            shutil.copy2(src, dst)
+        log.info("copied %s", name)
 
-    # 2. Convert the Excel file to CSV. dtype=str keeps every value exactly as
-    #    written (no guessed types) and keep_default_na=False keeps blanks blank.
-    xlsx_path = dest / DURATION_XLSX
-    sheets = pd.ExcelFile(xlsx_path).sheet_names
-    print(f"{DURATION_XLSX} has sheet(s): {sheets}; converting the first")
-    df = pd.read_excel(xlsx_path, sheet_name=0, dtype=str, keep_default_na=False)
-    csv_path = dest / DURATION_CSV
+    xlsx, csv_path = dest / config.DURATION_XLSX, dest / config.DURATION_CSV
+    df = pd.read_excel(xlsx, sheet_name=0, dtype=str, keep_default_na=False)
     df.to_csv(csv_path, index=False, encoding="utf-8")
-    print(f"converted to {DURATION_CSV} ({len(df):,} rows)")
+    log.info("converted %s -> %s (%s rows)", xlsx.name, csv_path.name, f"{len(df):,}")
 
-    # 3. Build the manifest
-    extracted_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    when = started.isoformat(timespec="seconds")
     files = [
-        describe(dest / REGIONAL, count_csv_rows(dest / REGIONAL), extracted_at),
-        describe(dest / CATEGORIES, count_csv_rows(dest / CATEGORIES), extracted_at),
-        describe(
-            csv_path, count_csv_rows(csv_path), extracted_at,
-            converted_from=DURATION_XLSX,
-            source_sha256=sha256_of(xlsx_path),
-        ),
+        _describe(dest / config.REGIONAL_CSV, count_csv_rows(dest / config.REGIONAL_CSV), when),
+        _describe(dest / config.CATEGORIES_CSV, count_csv_rows(dest / config.CATEGORIES_CSV), when),
+        _describe(csv_path, count_csv_rows(csv_path), when,
+                  converted_from=config.DURATION_XLSX, source_sha256=sha256_of(xlsx)),
     ]
-    manifest = {"extracted_at": extracted_at, "files": files}
-    (dest / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    (dest / config.MANIFEST).write_text(json.dumps({"extracted_at": when, "files": files}, indent=2))
 
-    # 4. Check against the counts the plan expects
-    print("\nRow count check:")
-    ok = True
-    for entry in files:
-        want = EXPECTED_ROWS[entry["file_name"]]
-        got = entry["row_count"]
-        status = "OK" if got == want else "MISMATCH"
-        ok &= got == want
-        print(f"  {entry['file_name']:<28} {got:>9,}  expected {want:>9,}  {status}")
-    print("\nmanifest.json written to", dest)
-    if not ok:
-        raise SystemExit("Row counts do not match the expected values. Investigate before continuing.")
+    for e in files:
+        log.info("manifest | %s rows=%s bytes=%s", e["file_name"], f"{e['row_count']:,}", f"{e['size_bytes']:,}")
+        if expected_rows is not None and e["row_count"] != expected_rows[e["file_name"]]:
+            raise ValueError(f"{e['file_name']}: {e['row_count']:,} rows, expected "
+                             f"{expected_rows[e['file_name']]:,}")
+    log.info("extract done in %.1fs", (datetime.now(timezone.utc) - started).total_seconds())
+    return {"regional": dest / config.REGIONAL_CSV, "categories": dest / config.CATEGORIES_CSV,
+            "duration": csv_path, "manifest": dest / config.MANIFEST}
 
 
 if __name__ == "__main__":
-    main()# extract stage
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--source", default=str(config.SOURCE))
+    ap.add_argument("--dest", default=str(config.RAW))
+    a = ap.parse_args()
+    run(Path(a.source), Path(a.dest))
