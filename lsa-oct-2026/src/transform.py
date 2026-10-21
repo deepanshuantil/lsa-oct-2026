@@ -130,7 +130,7 @@ def transform_categories(spark, raw: Path, out: Path) -> dict:
         df = df.withColumn(c, tidy(c))
     df = (df.withColumn("appointment_day", parse_day_first("appointment_date"))          # new column
             .withColumn("month_start", F.trunc(parse_any("appointment_month"), "month"))
-            .withColumn("sub_icb_code", F.regexp_extract(F.col("sub_icb_location_name"), r"-\s*([0-9A-Z]{3})\s*$", 1)))
+            .withColumn("sub_icb_code", F.regexp_extract(F.col("sub_icb_location_name"), r"-\s*([0-9A-Z]{3,5})\s*$", 1)))
     if df.filter(F.col("month_start").isNull() | (F.col("sub_icb_code") == "")).count():
         raise ValueError("categories: could not parse appointment_month or the sub-ICB code")
     check_equal("categories | after transform (total)", total_in, total(df))
