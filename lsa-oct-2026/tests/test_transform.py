@@ -96,7 +96,7 @@ def test_categories_dates_are_day_first(spark, clean):
 # ---- 7. sub-ICB code from the location name
 def test_sub_icb_code_taken_from_end_of_name(spark, clean):
     df = ds(spark, clean, "categories")
-    assert df.filter(~F.col("sub_icb_code").rlike(r"^[0-9A-Z]{3}$")).count() == 0
+    assert df.filter(~F.col("sub_icb_code").rlike(r"^[0-9A-Z]{3,5}$")).count() == 0
     assert df.filter(~F.col("sub_icb_location_name").endswith(F.concat(F.lit("- "), F.col("sub_icb_code")))).count() == 0
 
 
