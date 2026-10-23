@@ -20,7 +20,7 @@ ICBS = ["E54000001", "E54000002", "E54000003"]
 def build(dest: Path, seed: int = 7) -> Path:
     rnd = random.Random(seed)
     dest.mkdir(parents=True, exist_ok=True)
-    months = ["2021-10-01", "2021-11-01", "2021-12-01"]
+    months = ["2021-10", "2021-11", "2021-12"]
 
     rows = []
     for icb in ICBS:
@@ -36,11 +36,11 @@ def build(dest: Path, seed: int = 7) -> Path:
                                 "appointment_mode", "time_between_book_and_appointment",
                                 "count_of_appointments"]).to_csv(dest / "appointments_regional.csv", index=False)
 
-    locs = [(f"NHS Place {i} ICB - {c}", ICBS[i % 3]) for i, c in enumerate(["00L", "00M", "00N", "01A", "02B"])]
+    locs = [(f"NHS Place {i} ICB - {c}", ICBS[i % 3]) for i, c in enumerate(["00L", "00M", "00N", "01A", "B2M3M"])]
     cat = []
     for name, icb in locs:
         for d in ["02/10/2021", "25/10/2021", "03/11/2021", "30/11/2021", "13/12/2021"]:
-            mon = f"{d[6:]}-{d[3:5]}-01"
+            mon = f"{d[6:]}-{d[3:5]}"
             for setting, ctx, c in [("General Practice", "Care Related Encounter", "Planned Clinics"),
                                     ("Primary Care Network", "Care Related Encounter", "Walk-in"),
                                     ("Unmapped", "Unmapped", "Unmapped")]:
