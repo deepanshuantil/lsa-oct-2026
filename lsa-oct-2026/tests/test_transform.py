@@ -127,3 +127,28 @@ def test_second_run_is_identical(spark, raw_dir, clean, tmp_path):
         a, b = ds(spark, clean, name), ds(spark, tmp_path, name)
         assert (a.count(), total(a)) == (b.count(), total(b))
         assert a.exceptAll(b.select(*a.columns)).count() == 0
+
+
+# ---- 11. date formats are stated, never guessed
+def _parse(spark, values, fn, *args):
+    df = spark.createDataFrame([(v,) for v in values], ["d"])
+    return [r[0] and str(r[0]) for r in df.select(fn("d", *args).alias("x")).collect()]
+
+
+def test_month_format_accepts_only_yyyy_mm(spark):
+    got = _parse(spark, ["2021-08", "2020-01", "2021-13", "Aug-2021", "2021-08-15", "08/2021", "garbage"],
+                 transform.parse_fixed, transform.MONTH_FORMAT)
+    assert got[:2] == ["2021-08-01", "2020-01-01"]
+    assert got[2:] == [None] * 5, "anything not in yyyy-MM must become null, not be guessed"
+
+
+def test_duration_date_format_accepts_only_full_timestamp(spark):
+    got = _parse(spark, ["2021-12-01 00:00:00", "01/12/2021", "2021-12-01", "garbage"],
+                 transform.parse_fixed, transform.DURATION_DATE_FORMAT)
+    assert got[0] == "2021-12-01"
+    assert got[1:] == [None] * 3
+
+
+def test_transform_has_no_format_guessing():
+    src = Path(transform.__file__).read_text()
+    assert "parse_any" not in src and "coalesce(*[" not in src
