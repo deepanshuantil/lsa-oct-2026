@@ -39,9 +39,12 @@ DURATION_SCHEMA = StructType([StructField(c, StringType(), True) for c in
                                "icb_ons_code", "region_ons_code", "appointment_date", "actual_duration"]]
                              + [StructField(COUNT, LongType(), True)])
 
-# Formats we accept for MONTH columns whose text layout the profile did not pin down.
-MONTH_FORMATS = ["yyyy-MM-dd", "yyyy-MM-dd HH:mm:ss", "dd/MM/yyyy", "MMM-yy", "MMMyyyy", "MMM-yyyy",
-                 "MMM yyyy", "yyyy-MM"]
+# The exact text layout of every date column, taken from the real raw files
+# (checked with a pattern count on all rows; see docs/decision_log.md #13).
+# There is NO guessing: a value that does not match its stated format becomes null,
+# and the stage then stops with an error.
+MONTH_FORMAT = "yyyy-MM"                      # regional and categories appointment_month, e.g. 2021-08
+DURATION_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss"  # duration appointment_date, e.g. 2021-12-01 00:00:00
 
 
 # ------------------------------------------------------------------ helpers
@@ -64,12 +67,9 @@ def parse_day_first(col: str) -> F.Column:
     return F.to_date(F.col(col), "dd/MM/yyyy")
 
 
-def parse_any(col: str, formats: list[str] = MONTH_FORMATS) -> F.Column:
-    """First format that fits wins; a value no format fits becomes null."""
-    def one(f: str) -> F.Column:
-        d = F.expr(f"try_to_timestamp(`{col}`, '{f}')").cast("date")
-        return F.when(F.year(d).between(1990, 2100), d)     # '2020' misread as year 0020 -> next format
-    return F.coalesce(*[one(f) for f in formats])
+def parse_fixed(col: str, fmt: str) -> F.Column:
+    """Parse text with ONE stated format. Anything that does not fit becomes null."""
+    return F.expr(f"try_to_timestamp(`{col}`, '{fmt}')").cast("date")
 
 
 def read_csv(spark: SparkSession, path: Path, schema: StructType) -> DataFrame:
@@ -107,7 +107,7 @@ def transform_regional(spark, raw: Path, out: Path) -> dict:
         df = df.withColumn(c, tidy(c))
     df = df.withColumn("hcp_type", F.when(F.lower(F.col("hcp_type")) == "other practice staff",
                                           F.lit("Other Practice Staff")).otherwise(F.col("hcp_type")))
-    df = df.withColumn("month_start", F.trunc(parse_any("appointment_month"), "month"))   # new column
+    df = df.withColumn("month_start", F.trunc(parse_fixed("appointment_month", MONTH_FORMAT), "month"))   # new column
     if df.filter(F.col("month_start").isNull()).count():
         raise ValueError("regional: appointment_month could not be parsed; check the raw format")
     check_equal("regional | after tidy (total)", total_in, total(df))
@@ -129,7 +129,7 @@ def transform_categories(spark, raw: Path, out: Path) -> dict:
     for c in [f.name for f in CATEGORIES_SCHEMA if f.dataType == StringType() and f.name != "appointment_date"]:
         df = df.withColumn(c, tidy(c))
     df = (df.withColumn("appointment_day", parse_day_first("appointment_date"))          # new column
-            .withColumn("month_start", F.trunc(parse_any("appointment_month"), "month"))
+            .withColumn("month_start", F.trunc(parse_fixed("appointment_month", MONTH_FORMAT), "month"))
             .withColumn("sub_icb_code", F.regexp_extract(F.col("sub_icb_location_name"), r"-\s*([0-9A-Z]{3,5})\s*$", 1)))
     if df.filter(F.col("month_start").isNull() | (F.col("sub_icb_code") == "")).count():
         raise ValueError("categories: could not parse appointment_month or the sub-ICB code")
@@ -144,7 +144,7 @@ def transform_duration(spark, raw: Path, out: Path) -> dict:
     log.info("duration | read rows=%s total=%s", f"{rows_in:,}", f"{total_in:,}")
     for c in [f.name for f in DURATION_SCHEMA if f.dataType == StringType()]:
         df = df.withColumn(c, tidy(c))
-    df = df.withColumn("appointment_day", parse_any("appointment_date"))
+    df = df.withColumn("appointment_day", parse_fixed("appointment_date", DURATION_DATE_FORMAT))
     df = df.withColumn("month_start", F.trunc("appointment_day", "month"))
     if df.filter(F.col("month_start").isNull()).count():
         raise ValueError("duration: appointment_date could not be parsed; check the converted CSV")
