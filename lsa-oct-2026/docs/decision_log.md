@@ -25,6 +25,7 @@ Row counts come from `data_profile.md` (Week 1) and the brief; fill the "run" co
 | 10 | Parquet partitioned by `month_start` | Queries read only the months they need; DuckDB reads the folders directly in Week 3 | 30 / 11 / 7 months |
 | 11 | Every stage writes with `mode("overwrite")` | Rerunning gives the same output, never doubles | all |
 | 12 | Totals checked before and after tidy, after summing, and against the brief | Proves nothing was lost or invented | all |
+| 13 | Every date column is parsed with one stated format (`yyyy-MM` for both `appointment_month` columns, `yyyy-MM-dd HH:mm:ss` for the duration `appointment_date`), found by counting the text pattern of every row in each raw column | The earlier code tried eight formats and took the first that fit, which is guessing. A wrong guess changes the month without any error | 596,821 / 817,394 / 137,793 |
 
 ## C. Denominators (each one changes the answer)
 
@@ -49,15 +50,28 @@ No registered-patient count exists in these files, so appointments per 1,000 pat
 The files have three different grains (ICB x month x status..., sub-ICB x day x category, sub-ICB x day x duration band). One flat table would mix those grains, repeat geography names on every row, and give wrong totals whenever someone filters across files. Joining the facts row by row would multiply rows and inflate totals, so they are compared only after aggregating each to a shared level such as month. The Week 3 reconciliation (regional total = category total for every month from August 2021 to June 2022) does exactly that.
 
 ## G. Tests proven able to fail
-Each rule was broken on purpose and the test suite went red (run on the sample data):
+Each rule was broken on purpose to prove its test can fail.
+
+**On the real NHS data**
+
+| Rule broken | Test that failed |
+| --- | --- |
+| Staff spelling not unified (`Other Practice staff` left as it was) | `test_one_spelling_of_other_practice_staff` |
+
+**On the sample data** (small fake files with the same five traps)
 
 | Rule broken | What failed |
 | --- | --- |
-| `dropDuplicates` instead of summing | stage's own total check (and `test_totals_preserved`) |
+| `dropDuplicates` instead of summing | the stage's own total check, and `test_totals_preserved` |
 | tidy step removed | `test_no_double_or_edge_spaces_in_any_text_column` |
-| staff spelling not unified | `test_one_spelling_of_other_practice_staff` |
 | date parsed month-first | `test_parse_day_first_unit` |
-| bad sub-ICB regex | stage's own check (and `test_sub_icb_code_taken_from_end_of_name`) |
+| bad sub-ICB regex | the stage's own check, and `test_sub_icb_code_taken_from_end_of_name` |
 | partitioning removed | `test_parquet_is_partitioned_by_month` |
+| `appointment_month` format loosened to `yyyy-MM-dd` | the pipeline stopped with an error at the first stage |
 
-Repeat this on the real data and record what you see.
+## H. Final results on the real data
+- Regional: 596,821 rows to 295,692, total 742,804,525
+- Categories: total 296,046,770
+- Duration: total 167,980,692
+- A second run gave identical results
+- Tests: 26 passed, none skipped
