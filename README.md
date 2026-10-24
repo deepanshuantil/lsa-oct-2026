@@ -2,7 +2,7 @@
 
 An end-to-end pipeline for NHS England GP appointment data: extract, transform (PySpark), load (DuckDB), dashboard (Streamlit).
 
-**Author:** Deepanshu Deepanshu
+**Author:** Deepanshu
 
 ## Status
 - [x] Week 1: Extract and data profile
