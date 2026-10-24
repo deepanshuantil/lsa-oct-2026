@@ -1,0 +1,78 @@
+{
+  "generated_at": "2026-10-24T21:02:46+00:00",
+  "all_passed": true,
+  "checks": [
+    {
+      "id": 1,
+      "name": "fact_appointments_monthly total appointments",
+      "passed": true,
+      "expected": 742804525,
+      "actual": 742804525,
+      "detail": ""
+    },
+    {
+      "id": 2,
+      "name": "fact_appointments_by_category total appointments",
+      "passed": true,
+      "expected": 296046770,
+      "actual": 296046770,
+      "detail": ""
+    },
+    {
+      "id": 3,
+      "name": "fact_appointments_by_duration total appointments",
+      "passed": true,
+      "expected": 167980692,
+      "actual": 167980692,
+      "detail": ""
+    },
+    {
+      "id": 4,
+      "name": "no orphan keys in the facts",
+      "passed": true,
+      "expected": 0,
+      "actual": 0,
+      "detail": "{\"booking_wait\": 0, \"duration_band\": 0, \"national_category\": 0, \"icb_code\": 0, \"duration sub_icb\": 0, \"month_start\": 0}"
+    },
+    {
+      "id": 5,
+      "name": "category sub-ICB codes all in dim_geography",
+      "passed": true,
+      "expected": 0,
+      "actual": 0,
+      "detail": ""
+    },
+    {
+      "id": 6,
+      "name": "dim_date has one row per day",
+      "passed": true,
+      "expected": 1096,
+      "actual": 1096,
+      "detail": "distinct dates=1096"
+    },
+    {
+      "id": 7,
+      "name": "band labels are the known sets",
+      "passed": true,
+      "expected": [],
+      "actual": [],
+      "detail": ""
+    },
+    {
+      "id": 8,
+      "name": "regional equals categories (Aug 2021 to Jun 2022 only)",
+      "passed": true,
+      "expected": 296046770,
+      "actual": 296046770,
+      "detail": "window=2021-08-01..2022-06-01"
+    },
+    {
+      "id": 9,
+      "name": "duration covers 90 to 100% of categories (shared months)",
+      "passed": true,
+      "expected": ">=0.90",
+      "actual": 0.9181,
+      "detail": "months=7 duration=167,980,692 categories=182,963,194"
+    }
+  ]
+}
