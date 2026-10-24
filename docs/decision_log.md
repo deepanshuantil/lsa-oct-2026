@@ -74,7 +74,7 @@ Each rule was broken on purpose to prove its test can fail.
 - Categories: total 296,046,770
 - Duration: total 167,980,692
 - A second run gave identical results
-- Tests: 26 passed, none skipped
+- Tests (Week 2): 26 passed, none skipped (Week 3 raised this to 46, see section I)
 
 ## I. Week 3: load and automate
 
