@@ -74,6 +74,14 @@ Source: NHS England, Appointments in General Practice.
 
 # The five traps
 
+# Total appointments (evidence that nothing was lost)
+
+These totals come from summing `count_of_appointments` in each raw file. Every later stage must reproduce them exactly.
+
+- appointments_regional.csv: 742,804,525
+- national_categories.csv: 296,046,770
+- actual_duration.csv: 167,980,692
+
 ## 1\. `actual\_duration.csv.xlsx` is an Excel file, not a CSV
 
 First bytes of the file: `b'PK\\x03\\x04'`. `PK` means a zip container, which is how .xlsx files are stored: **confirmed Excel**. Fix: converted to CSV with pandas in `extract.py`.
