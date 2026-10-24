@@ -61,3 +61,37 @@ def raw_pd(raw_dir):
     for df in out.values():
         df["count_of_appointments"] = df["count_of_appointments"].astype("int64")
     return out
+
+
+# ------------------------------------------------------------------ Week 3: warehouse
+import duckdb  # noqa: E402
+from src import checks, load  # noqa: E402
+
+
+@pytest.fixture(scope="session")
+def expected_totals(raw_dir, is_real, raw_pd):
+    """Real data: the literal numbers from config. Sample data: sums read from the raw CSVs
+    with pandas (independent of Spark and DuckDB)."""
+    if is_real:
+        return dict(config.EXPECTED_TOTALS)
+    return {k: int(v["count_of_appointments"].sum()) for k, v in raw_pd.items()}
+
+
+@pytest.fixture(scope="session")
+def expected_geo(is_real):
+    return config.EXPECTED_GEOGRAPHY_ROWS if is_real else None
+
+
+@pytest.fixture(scope="session")
+def warehouse(clean, expected_geo, tmp_path_factory):
+    """Path of a warehouse built by the real load stage, once per test session."""
+    path = tmp_path_factory.mktemp("wh") / "warehouse.duckdb"
+    load.run(clean, path, expected_geography_rows=expected_geo)
+    return path
+
+
+@pytest.fixture()
+def con(warehouse):
+    c = duckdb.connect(str(warehouse), read_only=True)
+    yield c
+    c.close()

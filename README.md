@@ -7,14 +7,16 @@ An end-to-end pipeline for NHS England GP appointment data: extract, transform (
 ## Status
 - [x] Week 1: Extract and data profile
 - [x] Week 2: Transform and tests (PySpark)
-- [ ] Week 3: Load and quality checks (DuckDB)
+- [x] Week 3: Load and quality checks (DuckDB)
 - [ ] Week 4: Dashboard (Streamlit)
 
 ## How to run
 1. Install Java 17, 21 or 25 and Python 3.10+.
 2. `pip install -r requirements.txt`
 3. Put the three NHS files in a folder and set `LSA_SOURCE` to it.
-4. `python run_pipeline.py` runs extract and transform.
+4. `python run_pipeline.py` runs extract, transform, load and the nine quality checks.
+   Exit codes: 0 loaded and all checks passed, 2 a check failed (warehouse untouched), 1 crashed.
+   `python run_pipeline.py --sample` runs the same on small fake data.
 5. `python -m pytest tests -q` runs the tests.
 
 ## Results (real data)
@@ -23,7 +25,9 @@ An end-to-end pipeline for NHS England GP appointment data: extract, transform (
 - Duration: total 167,980,692
 - A second run gives identical results.
 - Storage: source CSVs 159 MB -> clean Parquet 5.6 MB
-- Tests: 26 passed
+- Warehouse: 3 fact tables and 5 dimensions in `warehouse/warehouse.duckdb` (not in Git); reloading changes nothing
+- Quality checks: 9 of 9 pass (`docs/quality_report.json`); duration covers 91.8% of categories over the 7 months both files share
+- Tests: 46 passed
 
 ## Documentation
 - `docs/decision_log.md`: every change to the data and why

@@ -32,3 +32,36 @@ EXPECTED_TOTALS = {CLEAN_REGIONAL: 742_804_525, CLEAN_CATEGORIES: 296_046_770, C
 EXPECTED_REGIONAL_ROWS_AFTER_SUM = 295_692
 
 SHUFFLE_PARTITIONS = 8   # default is 200: far too many for one machine
+
+# ----------------------------------------------------------------- Week 3: warehouse
+WAREHOUSE = ROOT / "warehouse" / "warehouse.duckdb"
+QUALITY_REPORT = ROOT / "docs" / "quality_report.json"
+
+# dim_geography is built from the duration file: 106 sub-ICB locations
+EXPECTED_GEOGRAPHY_ROWS = 106
+
+# dim_date covers every day in this range (regional file starts Jan 2020, all files end Jun 2022)
+DATE_RANGE = ("2020-01-01", "2022-12-31")
+
+# The regional and category files only overlap here (first day of each month, inclusive)
+RECON_WINDOW = ("2021-08-01", "2022-06-01")
+
+# The duration file will NOT reach 100% of the category file (about 90.9 to 92.2%)
+MIN_DURATION_COVERAGE = 0.90
+
+# Known bands with an explicit sort order (alphabetical would put "1 Day" before "Same Day").
+# (label, is_known): "Unknown / Data Quality" is excluded from rates that need a known value.
+BOOKING_WAIT_BANDS = [
+    ("Same Day", True), ("1 Day", True), ("2 to 7 Days", True), ("8 to 14 Days", True),
+    ("15 to 21 Days", True), ("22 to 28 Days", True), ("More than 28 Days", True),
+    ("Unknown / Data Quality", False),
+]
+DURATION_BANDS = [
+    ("1-5 Minutes", True), ("6-10 Minutes", True), ("11-15 Minutes", True), ("16-20 Minutes", True),
+    ("21-30 Minutes", True), ("31-60 Minutes", True), ("Unknown / Data Quality", False),
+]
+
+# Exit codes of run_pipeline.py
+EXIT_OK = 0
+EXIT_CRASH = 1
+EXIT_CHECK_FAILED = 2

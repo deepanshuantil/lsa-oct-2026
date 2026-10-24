@@ -75,3 +75,20 @@ Each rule was broken on purpose to prove its test can fail.
 - Duration: total 167,980,692
 - A second run gave identical results
 - Tests: 26 passed, none skipped
+
+## I. Week 3: load and automate
+
+| # | Decision | Why |
+|---|----------|-----|
+| 14 | Three fact tables, not one | The files have different grains (month x ICB, day x sub-ICB x category, day x sub-ICB x duration). Merging them would double count or invent rows. |
+| 15 | Facts hold counts only; descriptions live in dimensions | Facts stay small and a label is fixed in one place. |
+| 16 | Load = delete the month, insert the month, inside one transaction | Running the load twice gives the same result, and a failure part way leaves the old month untouched (both tested). |
+| 17 | The load does no grouping and no de-duplication | The look-alike regional rows were summed in the transform. Doing it again would delete real appointments. |
+| 18 | Load into warehouse.duckdb.staging, run the checks, then swap in | A failed check must not leave a half-wrong warehouse. Exit code 2 means nothing was written. |
+| 19 | Expected totals are literal numbers in config.py | A check that recomputes its expectation from the data it checks can never fail. |
+| 20 | Reconcile regional against categories only for Aug 2021 to Jun 2022 | The two files only overlap in that window. |
+| 21 | Duration coverage is a range (90% to 100%) over the months both files share | The duration file starts later than categories (7 months against 11) and holds about 92% of its appointments (measured 91.8%). My first version compared all months and wrongly failed at 56.7%. |
+| 22 | dim_geography comes from the duration file; facts that only know the ICB use the view v_icb | dim_geography has many rows per ICB, so joining a fact to it would multiply rows. |
+| 23 | Band labels have an explicit sort_order and an is_known flag | Alphabetical order puts "1 Day" before "Same Day", and "Unknown / Data Quality" must be excluded from rates. |
+
+Results: all 9 checks pass, totals match the profile exactly, 46 tests pass.
