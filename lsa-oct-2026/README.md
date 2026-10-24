@@ -23,7 +23,7 @@ An end-to-end pipeline for NHS England GP appointment data: extract, transform (
 - Duration: total 167,980,692
 - A second run gives identical results.
 - Storage: source CSVs 159 MB -> clean Parquet 5.6 MB
-- Tests: 23 passed
+- Tests: 26 passed
 
 ## Documentation
 - `docs/decision_log.md`: every change to the data and why
