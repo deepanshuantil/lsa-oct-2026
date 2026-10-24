@@ -19,6 +19,7 @@ import config  # noqa: E402
 
 log = logging.getLogger("checks")
 
+# Maps each dataset name (as used in config.EXPECTED_TOTALS) to its fact table in the warehouse.
 FACTS = {
     "regional": "fact_appointments_monthly",
     "categories": "fact_appointments_by_category",
@@ -27,10 +28,13 @@ FACTS = {
 
 
 def _one(con, sql, params=None):
+    # Run a query that returns a single value (one row, one column) and give back that value.
     return con.execute(sql, params or []).fetchone()[0]
 
 
 def _result(cid, name, expected, actual, detail="", ok=None):
+    # Every check reports in the same shape, which is what ends up in quality_report.json.
+    # By default a check passes when expected == actual; checks that need a range pass ok=.
     passed = (expected == actual) if ok is None else ok
     return {"id": cid, "name": name, "passed": bool(passed), "expected": expected,
             "actual": actual, "detail": detail}
@@ -38,6 +42,8 @@ def _result(cid, name, expected, actual, detail="", ok=None):
 
 def check_totals(con, expected_totals):
     """Checks 1-3: each fact table adds up to the number measured in the profile."""
+    # The expected numbers are fixed constants measured in the profile (config.py).
+    # They are NOT recomputed from the warehouse, so a bug in the load cannot hide itself.
     out = []
     for i, (key, table) in enumerate(FACTS.items(), start=1):
         actual = _one(con, f"SELECT COALESCE(SUM(count_of_appointments), 0) FROM {table}")
@@ -47,6 +53,8 @@ def check_totals(con, expected_totals):
 
 def check_orphans(con):
     """Check 4: every key in a fact exists in its dimension (no orphans)."""
+    # Each query LEFT JOINs a fact to its dimension and counts rows where no match was found.
+    # A match missing means the fact uses a label or code the dimension does not know.
     sql = {
         "booking_wait": "SELECT COUNT(*) FROM fact_appointments_monthly f LEFT JOIN dim_booking_wait d USING (booking_wait) WHERE d.booking_wait IS NULL",
         "duration_band": "SELECT COUNT(*) FROM fact_appointments_by_duration f LEFT JOIN dim_duration_band d ON f.duration_band = d.duration_band WHERE d.duration_band IS NULL",
@@ -68,6 +76,7 @@ def check_category_geography(con):
 
 def check_dim_date(con):
     """Check 6: dim_date has exactly one row per calendar day, no gaps or repeats."""
+    # Number of days from start to end inclusive; the table must have exactly that many rows.
     start, end = config.DATE_RANGE
     expected = (datetime.fromisoformat(end) - datetime.fromisoformat(start)).days + 1
     rows = _one(con, "SELECT COUNT(*) FROM dim_date")
@@ -78,6 +87,8 @@ def check_dim_date(con):
 
 def check_band_labels(con):
     """Check 7: dimensions hold exactly the known label sets, no stray spellings."""
+    # Sets are used so the order does not matter. "stray" = labels the facts use that
+    # are not in the known list, e.g. a misspelling that slipped past the transform.
     wait = {r[0] for r in con.execute("SELECT booking_wait FROM dim_booking_wait").fetchall()}
     dur = {r[0] for r in con.execute("SELECT duration_band FROM dim_duration_band").fetchall()}
     exp_wait = {b for b, _ in config.BOOKING_WAIT_BANDS}
@@ -90,6 +101,7 @@ def check_band_labels(con):
 
 
 def _window_total(con, table):
+    # Total appointments for one fact table inside the reconciliation window only.
     lo, hi = config.RECON_WINDOW
     return int(_one(con, f"SELECT COALESCE(SUM(count_of_appointments), 0) FROM {table} "
                          "WHERE month_start BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)", [lo, hi]))
@@ -97,6 +109,7 @@ def _window_total(con, table):
 
 def check_reconciliation(con):
     """Check 8: regional and categories agree, but only where both files have data."""
+    # Both files count the same appointments, just cut differently, so the totals must match.
     reg = _window_total(con, FACTS["regional"])
     cat = _window_total(con, FACTS["categories"])
     return _result(8, "regional equals categories (Aug 2021 to Jun 2022 only)", reg, cat,
@@ -107,6 +120,8 @@ def check_duration_coverage(con):
     """Check 9: duration is a partial file. Over the months BOTH files have, it must cover
     most of categories and never more. (Duration starts later than categories, so comparing
     all months would be wrong.) The reason for the gap is in docs/decision_log.md."""
+    # Only months that exist in the duration file are compared. Duration starts in Dec 2021
+    # but categories starts in Aug 2021, so comparing every month would give a false failure.
     lo, hi = config.RECON_WINDOW
     months = "SELECT DISTINCT month_start FROM fact_appointments_by_duration"
     def total(table):
@@ -122,6 +137,8 @@ def check_duration_coverage(con):
 
 
 def run_checks(con, expected_totals=None):
+    # Runs all nine checks and returns their results. Checks 1-3 are the three totals,
+    # then 4 orphans, 5 geography codes, 6 dim_date, 7 labels, 8 reconciliation, 9 coverage.
     expected_totals = expected_totals or config.EXPECTED_TOTALS
     results = []
     results += check_totals(con, expected_totals)
@@ -134,6 +151,7 @@ def run_checks(con, expected_totals=None):
 def run(warehouse: Path = config.WAREHOUSE, report_path: Path = config.QUALITY_REPORT,
         expected_totals=None):
     """Run all nine checks, write the JSON report, return (all_passed, results)."""
+    # read_only=True: checking must never change the data it is checking.
     con = duckdb.connect(str(warehouse), read_only=True)
     try:
         results = run_checks(con, expected_totals)
@@ -143,6 +161,7 @@ def run(warehouse: Path = config.WAREHOUSE, report_path: Path = config.QUALITY_R
     for r in results:
         log.log(logging.INFO if r["passed"] else logging.ERROR, "check %s %s | %s | expected=%s actual=%s %s",
                 r["id"], "PASS" if r["passed"] else "FAIL", r["name"], r["expected"], r["actual"], r["detail"])
+    # Write the report even when a check fails: the failure is exactly what a person needs to read.
     report_path = Path(report_path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps({

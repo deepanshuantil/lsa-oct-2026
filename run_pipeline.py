@@ -27,6 +27,7 @@ from src import checks, extract, load, transform
 
 
 def setup_logging() -> None:
+    # Every message goes to the screen AND to logs/pipeline.log, so a run can be read later.
     config.LOGS.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s",
                         handlers=[logging.StreamHandler(sys.stdout),
@@ -45,12 +46,15 @@ def raw_totals(raw: Path) -> dict:
 def staged_load_and_check(clean, warehouse, report, expected_totals, expected_geo, log) -> int:
     """Load into warehouse.staging, check it, and swap it in only if every check passed."""
     warehouse = Path(warehouse)
+    # Why staging? If we loaded straight into the real warehouse and a check then failed,
+    # the real warehouse would already contain the bad data. So we work on a copy.
     staging = warehouse.with_name(warehouse.name + ".staging")
     warehouse.parent.mkdir(parents=True, exist_ok=True)
     for leftover in (staging, staging.with_name(staging.name + ".wal")):
         leftover.unlink(missing_ok=True)
     if warehouse.exists():
         shutil.copy2(warehouse, staging)          # start from the current state: idempotent per month
+    # Load into the copy; the load only replaces the months it is given, so the rest stays.
     load.run(clean, staging, expected_geography_rows=expected_geo)
     ok, results = checks.run(staging, report, expected_totals)
     if not ok:
@@ -58,6 +62,8 @@ def staged_load_and_check(clean, warehouse, report, expected_totals, expected_ge
         failed = [r["id"] for r in results if not r["passed"]]
         log.error("QUALITY CHECK FAILED (checks %s): warehouse left unchanged. See %s", failed, report)
         return config.EXIT_CHECK_FAILED
+    # All checks passed: swap the checked copy in. os.replace is one step, so readers
+    # see either the old warehouse or the new one, never half of each.
     os.replace(staging, warehouse)
     log.info("all %d checks passed: warehouse updated at %s", len(results), warehouse)
     return config.EXIT_OK
@@ -83,6 +89,7 @@ def main() -> int:
         expected_rows = expected_totals = expected_reg = expected_geo = None
         warehouse, report = tmp / "warehouse.duckdb", tmp / "quality_report.json"
 
+    # Order of the stages: extract -> transform -> load -> checks. The first error stops the run.
     spark = None
     try:
         log.info("=== pipeline start ===")
@@ -92,14 +99,14 @@ def main() -> int:
                              expected_regional_rows=expected_reg)
         if args.sample:
             expected_totals = raw_totals(raw)
-        spark.stop()                      # free the JVM before loading
+        spark.stop()                      # free the JVM (Spark's engine) before loading
         spark = None
         code = staged_load_and_check(clean, warehouse, report, expected_totals, expected_geo, log)
         log.info("=== pipeline finished: exit code %s ===", code)
         return code
     except Exception:
         log.exception("PIPELINE STOPPED: a stage failed (see the error above)")
-        return config.EXIT_CRASH
+        return config.EXIT_CRASH          # 1 = unexpected error (the traceback is in the log)
     finally:
         if spark is not None:
             spark.stop()
