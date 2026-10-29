@@ -185,4 +185,10 @@ def main() -> None:
     out.append("_Write 3 to 5 sentences here in your own words: which trap surprised you most, what would have gone "
                "wrong silently if you had not profiled first, and one data-quality caveat from section 4 of the metadata._\n")
 
-    Path(args.out).parent.mkdir(parents=True,
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out).write_text("\n".join(out), encoding="utf-8")
+    print(f"wrote {args.out}")
+
+
+if __name__ == "__main__":
+    main()
