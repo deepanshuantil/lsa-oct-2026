@@ -1,14 +1,14 @@
 # Decision log
 
 One line per decision: what changed, why, and how many rows it affected.
-Row counts come from `data_profile.md` (Week 1) and the brief; fill the "run" column from your own `logs/pipeline.log`.
+Row counts come from `data_profile.md` (Week 1) and the pipeline logs.
 
 ## A. Data cleaning (the five traps)
 
 | # | Decision | Why | Rows affected |
 | --- | --- | --- | --- |
 | 1 | Read `actual_duration.csv.xlsx` with pandas and write `actual_duration.csv` (in `extract.py`), all values as text | The file is Excel despite its name; Spark cannot read it. Text keeps codes like `00L` intact | 137,793 |
-| 2 | Strip `﻿` from the header of `national_categories.csv` and check the header against the declared schema | A hidden byte-order mark would rename the first column | 1 header (817,394 data rows read safely) |
+| 2 | Strip `\ufeff` from the header of `national_categories.csv` and check the header against the declared schema | A hidden byte-order mark would rename the first column | 1 header (817,394 data rows read safely) |
 | 3 | Parse `appointment_date` with `to_date(col, "dd/MM/yyyy")` into a new column `appointment_day` | Dates are day-first (first part reaches 31, second never above 12). Month-first would put appointments in the wrong month | 817,394 |
 | 4 | Group the regional file by every descriptive column and **sum** the counts; never drop rows | The sub-ICB columns were removed, so different sub-ICBs in one ICB produce the same key (21,604 exact copies, plus rows with the same key and a different count). Dropping would delete real appointments | 596,821 -> 295,692 (301,129 merged); total unchanged at 742,804,525 |
 | 5a | Collapse repeated spaces and trim every text column | `8  to 14 Days`, `15  to 21 Days`, `22  to 28 Days` contain double spaces | 225,119 regional rows |
@@ -103,3 +103,4 @@ Results: all 9 checks pass, totals match the profile exactly, 46 tests pass.
 | 27 | The dashboard reads small CSV files of counts (app/data), not the warehouse | warehouse.duckdb is git-ignored (too big and not for GitHub), so a hosted app cannot see it. The CSVs hold aggregated counts only, nothing personal. Rates are computed in the dashboard from the counts, as in decision 15. |
 | 28 | All caveat wording lives in app/caveats.py | One place to edit, and every chart shows the caveat that affects it. |
 
+Week 4 results: dashboard live (link in the README), 12 KPIs, a caveat under every chart, 52 tests pass on the real data.

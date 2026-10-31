@@ -106,23 +106,13 @@ These are **real data, not errors**: the sub-ICB columns were removed, so differ
 
 **Also check by hand:** compare the staff-type labels with `metadata\_nhs.txt` (the plan notes *Other Practice staff* vs *Other Practice Staff*), and note that alphabetical order puts `1 Day` before `Same Day`, so the wait bands need an explicit sort order.
 
-# My notes
+# Notes
 
-*Write 3 to 5 sentences here in your own words:* 
+## Which trap surprised me most
+The 21,604 duplicate rows in the regional file surprised me most. Normally I would drop exact duplicates, but here they are real appointments. The sub-ICB columns were removed from this file, so two sub-ICBs in the same ICB can produce identical rows. The correct fix is to sum them, not delete them.
 
-*which trap surprised you most*
+## What would have gone wrong silently without profiling
+Several problems would have failed silently. Dropping the duplicates would have deleted real appointments, so the regional total would not match the categories file. Spark cannot read `actual_duration.csv.xlsx` because it is an Excel file, not a CSV. The hidden byte-order mark would have turned the first column into `\ufeffappointment_date`, so queries for `appointment_date` would fail. Reading the day-first dates without stating the format would have turned 2 August 2021 into the wrong date or left the column as text. None of these would have shown an obvious error, only wrong numbers.
 
-*The 21,604 duplicate rows in the regional file surprised me most. Normally I would drop exact duplicates, but here they are real appointments. The sub-ICB columns were removed from this file, so two sub-ICBs in the same ICB can produce identical rows. The correct fix is to sum them, not delete them.*
-
-
-
-*what would have gone wrong silently if you had not profiled first*
-
-*Several problems would have failed silently. Dropping the duplicates would have deleted real appointments, so the regional total would not match the categories file. Spark cannot read actual\_duration.csv.xlsx because it is an Excel file, not a CSV. The hidden byte-order mark would have turned the first column into \\ufeffappointment\_date, so queries for appointment\_date would fail. Reading the day-first dates without stating the format would have turned 2 August 2021 into the wrong date or left the column as text. None of these would have shown an obvious error, only wrong numbers.*
-
-
-
-*data-quality caveat from section 4 of the metadata.*
-
-*Between 3% and 6% of appointments each month are recorded with Unknown status, because the appointment stayed "Booked" and nobody knows whether it took place. Any attendance or DNA rate I calculate is therefore based on incomplete data, and the dashboard must say so.*
-
+## A data-quality caveat from the metadata
+Between 3% and 10% of appointments each month are recorded with Unknown status (highest in March and April 2020, about 4% in 2022), because the appointment stayed "Booked" and nobody knows whether it took place. Any attendance or DNA rate is therefore based on incomplete data, and the dashboard says so.

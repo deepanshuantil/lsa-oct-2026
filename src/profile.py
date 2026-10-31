@@ -181,9 +181,8 @@ def main() -> None:
                "(the plan notes *Other Practice staff* vs *Other Practice Staff*), and note that "
                "alphabetical order puts `1 Day` before `Same Day`, so the wait bands need an explicit sort order.\n")
 
-    out.append("# My notes\n")
-    out.append("_Write 3 to 5 sentences here in your own words: which trap surprised you most, what would have gone "
-               "wrong silently if you had not profiled first, and one data-quality caveat from section 4 of the metadata._\n")
+    out.append("# Notes\n")
+    out.append("_Written by hand after profiling. Regenerating this file replaces this section._\n")
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text("\n".join(out), encoding="utf-8")
