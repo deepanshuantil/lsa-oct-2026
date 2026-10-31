@@ -8,7 +8,12 @@ An end-to-end pipeline for NHS England GP appointment data: extract, transform (
 - [x] Week 1: Extract and data profile
 - [x] Week 2: Transform and tests (PySpark)
 - [x] Week 3: Load and quality checks (DuckDB)
-- [ ] Week 4: Dashboard (Streamlit): `streamlit run app/dashboard.py`
+- [x] Week 4: Dashboard (Streamlit)
+
+## Live dashboard
+https://lsa-oct-2026-hbomywgixrapmwlm7jdieb.streamlit.app/
+
+Twelve measures with a data-quality caveat under every chart. To run it yourself: `streamlit run app/dashboard.py` (the numbers come from the small CSV files in `app/data`, made by `python src/kpis.py`).
 
 ## How to run
 1. Install Java 17, 21 or 25 and Python 3.10+.
@@ -27,7 +32,7 @@ An end-to-end pipeline for NHS England GP appointment data: extract, transform (
 - Storage: source CSVs 159 MB -> clean Parquet 5.6 MB
 - Warehouse: 3 fact tables and 5 dimensions in `warehouse/warehouse.duckdb` (not in Git); reloading changes nothing
 - Quality checks: 9 of 9 pass (`docs/quality_report.json`); duration covers 91.8% of categories over the 7 months both files share
-- Tests: 46 passed
+- Tests: 52 passed
 
 ## Documentation
 - `docs/decision_log.md`: every change to the data and why
