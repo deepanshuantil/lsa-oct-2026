@@ -18,8 +18,8 @@ CAVEATS = {
         "14 days ahead (15 to 21 days, 22 to 28 days, more than 28 days)."
     ),
     "dna": (
-        "DNA rate = DNA / (Attended + DNA). Appointments with Unknown status are left out: between 3% and 6% "
-        "of appointments each month stay 'Booked' and nobody knows whether they took place, so every "
+        "DNA rate = DNA / (Attended + DNA). Appointments with Unknown status are left out: between 3% and 10% "
+        "of appointments each month (highest in March and April 2020, about 4% in 2022) stay 'Booked' and nobody knows whether they took place, so every "
         "attendance rate is based on incomplete data. The NHS notes also mention an early data-collection "
         "issue with DNA counts (see metadata_nhs.txt, section 2)."
     ),
@@ -41,7 +41,7 @@ CAVEATS = {
     ),
     "duration": (
         "Duration file only: December 2021 to June 2022 (the NHS first published actual duration in April 2022). "
-        "It covers only consultations that took place, about 92% of the categories file. Duration is recorded "
+        "It covers only consultations that took place, about 92% of the categories file. About a quarter of those have an Unknown duration, and they are left out of the share. Duration is recorded "
         "differently by each GP system supplier. Share = 16 to 60 minute bands / appointments with a known duration."
     ),
     "quality": (

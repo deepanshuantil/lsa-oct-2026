@@ -97,7 +97,7 @@ Results: all 9 checks pass, totals match the profile exactly, 46 tests pass.
 
 | # | Decision | Reason |
 |---|----------|--------|
-| 24 | Every rate leaves Unknown out of the denominator (status, mode, staff type, booking wait, duration) | Unknown means we do not know the answer. Counting it as "not DNA" or "not face-to-face" would invent a result. About 3% to 6% of appointments have Unknown status each month. |
+| 24 | Every rate leaves Unknown out of the denominator (status, mode, staff type, booking wait, duration) | Unknown means we do not know the answer. Counting it as "not DNA" or "not face-to-face" would invent a result. Between 3% and 10% of appointments have Unknown status each month (highest in March and April 2020, about 4% in 2022). |
 | 25 | Year-on-year compares a month with the same month a year earlier, never a full year with a half year | The regional file ends in June 2022, so 2022 has six months. A month with no prior year shows blank, not 0, because 0 would give a false -100% change. |
 | 26 | No per-1,000-patients figures and no raw totals compared between ICBs | The files have no registered-patient count. ICBs are compared by rates only, and the caveat says small ICBs can look extreme. |
 | 27 | The dashboard reads small CSV files of counts (app/data), not the warehouse | warehouse.duckdb is git-ignored (too big and not for GitHub), so a hosted app cannot see it. The CSVs hold aggregated counts only, nothing personal. Rates are computed in the dashboard from the counts, as in decision 15. |

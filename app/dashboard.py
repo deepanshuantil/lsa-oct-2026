@@ -53,6 +53,7 @@ def line(df, y, title, ytitle="%", colors=None):
     fig = px.line(df, x="month_start", y=y, markers=True, title=title,
                   color_discrete_sequence=colors or [BLUE, ORANGE])
     fig.update_layout(xaxis_title="", yaxis_title=ytitle, legend_title="", margin=dict(t=60, b=20))
+    fig.update_yaxes(rangemode="tozero")   # start at zero so small wobbles do not look like big changes
     return fig
 
 
