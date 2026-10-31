@@ -1,0 +1,13 @@
+{
+  "exported_at": "2026-10-31T18:15:30+00:00",
+  "tables": {
+    "monthly_totals": 30,
+    "wait_monthly": 30,
+    "dna_monthly": 30,
+    "dna_by_icb": 1260,
+    "mix_monthly": 30,
+    "weekday_average": 7,
+    "category_monthly": 11,
+    "duration_monthly": 7
+  }
+}
