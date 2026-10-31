@@ -8,7 +8,7 @@ An end-to-end pipeline for NHS England GP appointment data: extract, transform (
 - [x] Week 1: Extract and data profile
 - [x] Week 2: Transform and tests (PySpark)
 - [x] Week 3: Load and quality checks (DuckDB)
-- [ ] Week 4: Dashboard (Streamlit)
+- [ ] Week 4: Dashboard (Streamlit): `streamlit run app/dashboard.py`
 
 ## How to run
 1. Install Java 17, 21 or 25 and Python 3.10+.

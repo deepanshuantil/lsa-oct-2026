@@ -65,3 +65,8 @@ DURATION_BANDS = [
 EXIT_OK = 0
 EXIT_CRASH = 1
 EXIT_CHECK_FAILED = 2
+
+# ----------------------------------------------------------------- Week 4: dashboard
+# Small aggregated tables for the dashboard are exported here. They are committed to Git
+# (a few hundred KB of counts, nothing personal) so the hosted dashboard has data to read.
+KPI_DIR = ROOT / "app" / "data"
